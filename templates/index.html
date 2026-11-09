@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Purikura Booth ✨</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header>
+  <h1>📸 Purikura Booth <span class="sparkle-title">✨</span></h1>
+  <div class="header-right">
+    <label for="persona">you are</label>
+    <select id="persona">
+      {% for key, p in personas.items() %}
+      <option value="{{ key }}">{{ p.name }} ({{ p.blurb }})</option>
+      {% endfor %}
+    </select>
+    <span id="conn" class="dot offline" title="socket status"></span>
+  </div>
+</header>
+
+<main>
+  <section class="booth">
+    <div id="canvas" class="photo-frame">
+      <div class="photo-backdrop"></div>
+      <div class="frame-caption">tap the photo to decorate! ♡</div>
+    </div>
+    <div class="palette-row">
+      <div class="palette" id="classic-palette">
+        <span class="palette-label">classic</span>
+        {% for e in classic_pack %}
+        <button class="sticker-btn" data-emoji="{{ e }}">{{ e }}</button>
+        {% endfor %}
+      </div>
+      <div class="palette locked" id="sparkle-palette">
+        <span class="palette-label">sparkle engine <span id="sparkle-lock">🔒</span></span>
+        {% for e in sparkle_pack %}
+        <button class="sticker-btn sparkle" data-emoji="{{ e }}" disabled>{{ e }}</button>
+        {% endfor %}
+      </div>
+      <div class="palette locked" id="spooky-palette">
+        <span class="palette-label">spooky pack <span id="spooky-lock">🔒</span></span>
+        {% for e in spooky_pack %}
+        <button class="sticker-btn spooky" data-emoji="{{ e }}" disabled>{{ e }}</button>
+        {% endfor %}
+      </div>
+      <button id="clear" class="utility-btn">🧽 clear</button>
+    </div>
+  </section>
+
+  <aside class="control-room">
+    <h2>🛰 LaunchDarkly control room</h2>
+    <div id="your-status" class="status-chip classic-chip">connecting…</div>
+    <table id="eval-table">
+      <thead><tr><th>artist</th><th>segment</th><th>engine</th><th>spooky</th><th>reason</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <div class="panic-row">
+      <button id="panic" class="panic-btn"
+        {% if not trigger_configured %}disabled title="Set LD_TRIGGER_URL in .env to enable (see README)"{% endif %}>
+        🚨 emergency de-sparkle
+      </button>
+    </div>
+    <h3>event log</h3>
+    <ul id="log"><li class="hint">waiting for flag changes…</li></ul>
+    <p class="hint">flag: <code>{{ flag_key }}</code> — toggle it in LaunchDarkly
+    and watch this page change with <em>no reload</em>.</p>
+  </aside>
+</main>
+
+<div id="toast" class="toast hidden"></div>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="{{ url_for('static', filename='booth.js') }}"></script>
+</body>
+</html>
