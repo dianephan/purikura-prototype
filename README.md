@@ -50,10 +50,18 @@ Create a **boolean** flag with key exactly `sparkleStickerEngine`
 `true` (sparkle) / `false` (classic), off variation `false`. Then configure
 targeting in your demo environment:
 
-1. **Individual target:** context kind `artist`, key `diane-artist` → serve `true`
-2. **Rule:** if `artist` `plan` is one of `free` → serve `false`
-3. **Default (fallthrough):** serve `true`
-4. Leave the flag **off** — turning it on is the first demo beat
+1. **Segments** (Segments → Create segment): `free-tier` with rule
+   `artist` `plan` is one of `free`, and `premium-tier` with rule
+   `artist` `plan` is one of `pro`
+2. **Individual target:** context kind `artist`, key `diane-artist` → serve `true`
+3. **Rule:** if context matches segment `free-tier` → serve `false`
+4. **Default (fallthrough):** serve `true` (this is what `premium-tier` gets)
+5. Leave the flag **off** — turning it on is the first demo beat
+
+There is also a second flag, `spookyStickerPack`, showing **segment reuse**:
+boolean, rule "matches segment `premium-tier`" → `true`, fallthrough `false`,
+and it starts **on** — premium artists have the 🎃 pack unlocked from the
+moment the page loads, before the sparkle demo even begins.
 
 The four demo personas (defined in `app.py`) and what they should get while
 the flag is ON:
@@ -63,7 +71,7 @@ the flag is ON:
 | -------------- | ---- | --------- | ---------------------------------- |
 | `diane-artist` | free | ✨ sparkle | individual target (beats the rule) |
 | `mika-pro`     | pro  | ✨ sparkle | fallthrough                        |
-| `sam-free`     | free | classic   | rule match                         |
+| `sam-free`     | free | classic   | free-tier segment rule             |
 | `rin-pro`      | pro  | ✨ sparkle | fallthrough                        |
 
 
@@ -88,6 +96,34 @@ curl -X POST "$LD_TRIGGER_URL"
 python app.py
 # → Purikura Booth running at http://localhost:5055
 ```
+
+## Extra credit: experimentation
+
+A live experiment — **Sparkle Engine Engagement** — runs on
+`sparkleStickerEngine` in the `test` environment, measuring the custom
+metric **`sticker-placed`** (stickers per user, higher is better). Real
+booth usage already feeds it: every placement calls `client.track`.
+
+Real traffic takes days to be significant, so to **force fake data and see
+a visual right away**, run:
+
+```bash
+python simulate_traffic.py --visitors 300
+```
+
+Then open the results dashboard (allow a few minutes for event processing):
+
+<https://app.launchdarkly.com/projects/diane-demo/experiments/sparkle-engine-engagement/results?selected-env=test>
+
+What the simulator does — and what it rigs — is documented in
+`simulate_traffic.py`: each fake visitor is a `user` + `artist` multi-kind
+context; evaluating the flag registers their exposure (LaunchDarkly buckets
+them 50/50 on the fallthrough), and the sparkle cohort is scripted to place
+more stickers so the dashboard shows a decisive lift. **Simulated + rigged —
+label any screenshots as such.** Re-running mints fresh visitor keys, so
+each run adds more units. Free-plan visitors match the free-tier segment
+rule instead of the fallthrough, so they're served the flag but excluded
+from the experiment — a nice detail to narrate in a demo.
 
 
 
