@@ -1,4 +1,6 @@
-# Purikura Booth ✨
+# A Beautiful Camera ✨
+
+(ABC Company)
 
 A collaborative photo-decorating booth that demos LaunchDarkly's release, remediation, and targeting features **visually.**
 
@@ -25,8 +27,6 @@ every toggle reaches all open browsers instantly — mid-session, no reload.
 - **Python 3.10+** (`python3 --version`)
 - A LaunchDarkly account with a **server-side SDK key**
 - macOS/Linux/Windows — no other services needed; state is in-memory
-
-
 
 tl;dr try the live demo: 
 
@@ -109,7 +109,7 @@ curl -X POST "$LD_TRIGGER_URL"
 
 ```bash
 python app.py
-# → Purikura Booth running at http://localhost:5055
+# → A Beautiful Camera running at http://localhost:5055
 ```
 
 
@@ -192,4 +192,3 @@ more stickers so the dashboard shows a decisive lift. **Simulated + rigged —**
 each run adds more units. Free-plan visitors match the free-tier segment  
 rule instead of the fallthrough, so they're served the flag but excluded  
 from the experiment — a nice detail to narrate in a demo.
-

@@ -1,4 +1,4 @@
-# Render blueprint — deploy the Purikura Booth as a web service.
+# Render blueprint — deploy the A Beautiful Camera as a web service.
 # Docs: https://render.com/docs/blueprint-spec
 #
 # The LaunchDarkly SDK key is intentionally `sync: false`: Render will

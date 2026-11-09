@@ -1,4 +1,4 @@
-"""Purikura Booth
+"""A Beautiful Camera
 
 The `sparkleStickerEngine` flag wraps the booth's new sticker renderer:
 
@@ -321,7 +321,7 @@ def main():
     # The SDK keeps a streaming connection open to LaunchDarkly; this listener
     # fires within moments of anyone toggling the flag.
     client.flag_tracker.add_listener(on_flag_change)
-    print(f"Purikura Booth running at http://localhost:{PORT} (flag: {FLAG_KEY})")
+    print(f"A Beautiful Camera running at http://localhost:{PORT} (flag: {FLAG_KEY})")
     socketio.run(app, host="0.0.0.0", port=PORT, debug=False,
                  allow_unsafe_werkzeug=True)
 

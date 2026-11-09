@@ -1,4 +1,4 @@
-/* Purikura Booth client: renders the shared canvas and the LaunchDarkly
+/* A Beautiful Camera client: renders the shared canvas and the LaunchDarkly
  * control room. All flag decisions come from the server — this file only
  * reflects them. */
 
