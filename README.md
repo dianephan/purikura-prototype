@@ -97,6 +97,33 @@ python app.py
 # → Purikura Booth running at http://localhost:5055
 ```
 
+## Deploy to Render (share the booth across machines)
+
+The repo ships a `render.yaml` blueprint, so the booth can run on
+[Render](https://render.com) and be opened from any machine — which makes
+the collaborative canvas *actually* collaborative across laptops and phones.
+
+1. Push this repo to GitHub (remember: `.env` is gitignored and stays local).
+2. In Render: **New → Blueprint**, pick the repo. Render reads `render.yaml`
+   and proposes the `purikura-booth` web service.
+3. When prompted, paste your **server-side SDK key** as `LD_SDK_KEY`
+   (`LD_TRIGGER_URL` is optional — add it later to arm the 🚨 button).
+4. Deploy. Your booth lives at `https://purikura-booth.onrender.com`
+   (or similar). Open it on two different devices, pick different personas,
+   and decorate the same photo together.
+
+Notes:
+
+- **Free tier sleeps** after ~15 idle minutes; the first visit after a nap
+  takes ~30–60 s to cold-start. Fine for demos — just warm it up before one.
+- Render supports **WebSockets** on all plans, so the instant flag toggles
+  work exactly like local.
+- The server still reaches LaunchDarkly over its streaming connection, so
+  toggling a flag in the dashboard updates every connected device at once —
+  the same demo, now multi-machine.
+- The URL is public: anyone who has it can place stickers. For a take-home
+  demo that's a feature, not a bug.
+
 ## Extra credit: experimentation
 
 A live experiment — **Sparkle Engine Engagement** — runs on

@@ -1,0 +1,25 @@
+# Render blueprint — deploy the Purikura Booth as a web service.
+# Docs: https://render.com/docs/blueprint-spec
+#
+# The LaunchDarkly SDK key is intentionally `sync: false`: Render will
+# prompt for it in the dashboard instead of reading it from this file,
+# so the secret never lives in the repo.
+
+services:
+  - type: web
+    name: purikura-booth
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    # Threading-mode Socket.IO with simple-websocket; see DESIGN.md for why
+    # we don't use gunicorn+eventlet (the LaunchDarkly SDK's listener runs
+    # on a real OS thread, which monkey-patching breaks).
+    startCommand: python app.py
+    healthCheckPath: /
+    envVars:
+      - key: LD_SDK_KEY
+        sync: false          # paste your server-side SDK key in the Render dashboard
+      - key: LD_TRIGGER_URL
+        sync: false          # optional: the flag's kill-switch trigger URL
+      - key: PYTHON_VERSION
+        value: 3.12.10
