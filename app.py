@@ -14,6 +14,7 @@ key (LaunchDarkly: Account settings -> Projects -> your environment).
 See README.md for the full walkthrough.
 """
 
+import base64
 import os
 import threading
 import time
@@ -21,7 +22,7 @@ import urllib.request
 import uuid
 
 from dotenv import load_dotenv
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, send_from_directory
 from flask_socketio import SocketIO
 
 import ldclient
@@ -59,11 +60,51 @@ SPARKLE_PACK = ["✨", "\U0001f496", "\U0001f31f", "\U0001f984", "\U0001fae7", "
 SPOOKY_PACK = ["\U0001f383", "\U0001f47b", "\U0001f987", "\U0001f577️", "\U0001f480", "\U0001f578️"]
 
 app = Flask(__name__)
-socketio = SocketIO(app, async_mode="threading", cors_allowed_origins="*")
+# max_http_buffer_size raised so a camera snapshot (JPEG data URL) fits in
+# one Socket.IO message.
+socketio = SocketIO(app, async_mode="threading", cors_allowed_origins="*",
+                    max_http_buffer_size=8_000_000)
 
 state_lock = threading.Lock()
 clients = {}    # socket sid -> persona key
-stickers = []   # shared canvas state: [{id, x, y, emoji, sparkle, by}]
+stickers = []   # shared canvas state: [{id, x, y, emoji, sparkle, spooky, by}]
+photo = {"image": None}  # current shared backdrop as a data URL
+
+# Saved photos live on disk; on Render's free tier the disk is ephemeral,
+# so the gallery resets on each deploy/restart (fine for a demo).
+GALLERY_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gallery")
+os.makedirs(GALLERY_DIR, exist_ok=True)
+
+
+def decode_data_url(data_url):
+    """Return (bytes, ext) for a base64 image data URL, or (None, None)."""
+    if not isinstance(data_url, str) or not data_url.startswith("data:image/"):
+        return None, None
+    header, _, b64 = data_url.partition(",")
+    if ";base64" not in header or not b64 or len(b64) > 6_000_000:
+        return None, None
+    ext = "png" if "png" in header else "jpg"
+    try:
+        return base64.b64decode(b64), ext
+    except Exception:
+        return None, None
+
+
+def gallery_items(limit=24):
+    items = []
+    try:
+        filenames = sorted(os.listdir(GALLERY_DIR), reverse=True)
+    except OSError:
+        return items
+    for fn in filenames:
+        if fn.rsplit(".", 1)[-1] not in ("jpg", "png"):
+            continue
+        stem = fn.rsplit(".", 1)[0]
+        by = stem.split("-", 1)[1] if "-" in stem else "?"
+        items.append({"url": f"/gallery/{fn}", "by": by})
+        if len(items) >= limit:
+            break
+    return items
 
 
 def build_context(persona_key):
@@ -135,6 +176,11 @@ def index():
     )
 
 
+@app.route("/gallery/<path:filename>")
+def gallery_file(filename):
+    return send_from_directory(GALLERY_DIR, filename)
+
+
 @app.route("/api/panic", methods=["POST"])
 def panic():
     """Emergency de-sparkle. Fires the LaunchDarkly trigger URL, which turns
@@ -155,11 +201,53 @@ def handle_join(data):
     with state_lock:
         clients[request.sid] = persona
         snapshot = list(stickers)
+        current_photo = photo["image"]
     socketio.emit("booth_state", {
         "you": persona,
         "stickers": snapshot,
+        "photo": current_photo,
+        "gallery": gallery_items(),
         "evaluations": evaluate_all(),
     }, to=request.sid)
+
+
+@socketio.on("set_photo")
+def handle_set_photo(data):
+    """A camera snapshot becomes the shared backdrop for everyone, and the
+    canvas starts fresh for the new photo."""
+    persona = clients.get(request.sid)
+    if persona is None or not data:
+        return
+    image = data.get("image")
+    raw, _ext = decode_data_url(image)
+    if raw is None:
+        return
+    with state_lock:
+        photo["image"] = image
+        stickers.clear()
+    socketio.emit("photo_updated", {
+        "image": image,
+        "by": PERSONAS[persona]["name"],
+    })
+
+
+@socketio.on("save_to_gallery")
+def handle_save_to_gallery(data):
+    """The client composites photo + stickers onto a canvas and sends the
+    result; the server writes it to the gallery folder for everyone."""
+    persona = clients.get(request.sid)
+    if persona is None or not data:
+        return
+    raw, ext = decode_data_url(data.get("image"))
+    if raw is None:
+        return
+    filename = f"{int(time.time() * 1000)}-{PERSONAS[persona]['name']}.{ext}"
+    with open(os.path.join(GALLERY_DIR, filename), "wb") as f:
+        f.write(raw)
+    socketio.emit("gallery_added", {
+        "url": f"/gallery/{filename}",
+        "by": PERSONAS[persona]["name"],
+    })
 
 
 @socketio.on("place_sticker")

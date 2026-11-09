@@ -80,6 +80,48 @@ main {
   pointer-events: none;
 }
 
+.photo-img, .camera {
+  position: absolute;
+  inset: 16px 16px 48px;
+  width: calc(100% - 32px);
+  height: calc(100% - 64px);
+  border-radius: 10px;
+  object-fit: cover;
+  pointer-events: none;
+}
+.camera {
+  z-index: 3;
+  transform: scaleX(-1); /* mirror, like a real purikura booth */
+  background: #222;
+}
+.hidden { display: none !important; }
+
+.gallery-title {
+  margin: 18px 0 8px;
+  font-size: 1rem;
+  color: var(--accent-deep);
+}
+.gallery {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 10px;
+  background: var(--card);
+  border-radius: 14px;
+  box-shadow: 0 4px 14px rgba(196, 93, 154, 0.15);
+  min-height: 92px;
+  align-items: center;
+}
+.gallery a { flex: 0 0 auto; }
+.gallery img {
+  height: 72px;
+  border-radius: 8px;
+  border: 2px solid var(--pink);
+  display: block;
+  transition: transform .1s;
+}
+.gallery img:hover { transform: scale(1.08); border-color: var(--accent); }
+
 .frame-caption {
   position: absolute;
   bottom: 12px; left: 0; right: 0;

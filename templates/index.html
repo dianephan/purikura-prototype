@@ -24,7 +24,9 @@
   <section class="booth">
     <div id="canvas" class="photo-frame">
       <div class="photo-backdrop"></div>
-      <div class="frame-caption">tap the photo to decorate! ♡</div>
+      <img id="photo-img" class="photo-img hidden" alt="booth photo">
+      <video id="camera" class="camera hidden" autoplay playsinline muted></video>
+      <div class="frame-caption">tap 📷 to take a photo, then tap to decorate! ♡</div>
     </div>
     <div class="palette-row">
       <div class="palette" id="classic-palette">
@@ -46,6 +48,14 @@
         {% endfor %}
       </div>
       <button id="clear" class="utility-btn">🧽 clear</button>
+      <button id="open-camera" class="utility-btn">📷 camera</button>
+      <button id="snap" class="utility-btn hidden">📸 snap!</button>
+      <button id="cancel-camera" class="utility-btn hidden">✖ cancel</button>
+      <button id="save-gallery" class="utility-btn">💾 save</button>
+    </div>
+    <h3 class="gallery-title">gallery ♡</h3>
+    <div id="gallery" class="gallery">
+      <span class="hint" id="gallery-empty">no saved photos yet — snap one!</span>
     </div>
   </section>
 

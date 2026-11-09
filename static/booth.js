@@ -16,11 +16,20 @@ const evalTbody = document.querySelector("#eval-table tbody");
 const logEl = document.getElementById("log");
 const toast = document.getElementById("toast");
 const conn = document.getElementById("conn");
+const photoImg = document.getElementById("photo-img");
+const cameraVideo = document.getElementById("camera");
+const openCameraBtn = document.getElementById("open-camera");
+const snapBtn = document.getElementById("snap");
+const cancelCameraBtn = document.getElementById("cancel-camera");
+const saveGalleryBtn = document.getElementById("save-gallery");
+const galleryEl = document.getElementById("gallery");
 
 let selectedEmoji = "❤️";
 let mySparkle = false;
 let mySpooky = false;
 let firstState = true;
+let localStickers = []; // mirror of the shared canvas, for compositing saves
+let cameraStream = null;
 
 const SPARKLE_EMOJIS = [...sparklePalette.querySelectorAll(".sticker-btn")]
   .map((b) => b.dataset.emoji);
@@ -46,9 +55,24 @@ personaSelect.addEventListener("change", join);
 
 socket.on("booth_state", (state) => {
   canvas.querySelectorAll(".sticker").forEach((el) => el.remove());
+  localStickers = state.stickers.slice();
   state.stickers.forEach(addSticker);
+  setPhoto(state.photo);
+  renderGallery(state.gallery || []);
   applyEvaluations(state.evaluations, !firstState);
   firstState = false;
+});
+
+socket.on("photo_updated", (data) => {
+  setPhoto(data.image);
+  canvas.querySelectorAll(".sticker").forEach((el) => el.remove());
+  localStickers = [];
+  showToast(`📷 ${data.by} took a new photo — decorate it!`);
+});
+
+socket.on("gallery_added", (item) => {
+  addGalleryItem(item, true);
+  showToast(`💾 ${item.by} saved a photo to the gallery`);
 });
 
 socket.on("flag_update", (update) => {
@@ -56,10 +80,14 @@ socket.on("flag_update", (update) => {
   addLog(`${update.at} — flag changed in LaunchDarkly`);
 });
 
-socket.on("sticker_added", addSticker);
-socket.on("canvas_cleared", () =>
-  canvas.querySelectorAll(".sticker").forEach((el) => el.remove())
-);
+socket.on("sticker_added", (st) => {
+  localStickers.push(st);
+  addSticker(st);
+});
+socket.on("canvas_cleared", () => {
+  canvas.querySelectorAll(".sticker").forEach((el) => el.remove());
+  localStickers = [];
+});
 socket.on("denied", (d) => showToast(d.message));
 
 function applyEvaluations(evaluations, announce) {
@@ -189,6 +217,126 @@ panicBtn.addEventListener("click", async () => {
     panicBtn.disabled = false;
   }
 });
+
+/* ---- camera & gallery ---- */
+
+function setPhoto(image) {
+  if (image) {
+    photoImg.src = image;
+    photoImg.classList.remove("hidden");
+  } else {
+    photoImg.classList.add("hidden");
+    photoImg.removeAttribute("src");
+  }
+}
+
+function setCameraUi(active) {
+  cameraVideo.classList.toggle("hidden", !active);
+  snapBtn.classList.toggle("hidden", !active);
+  cancelCameraBtn.classList.toggle("hidden", !active);
+  openCameraBtn.classList.toggle("hidden", active);
+}
+
+function stopCamera() {
+  if (cameraStream) {
+    cameraStream.getTracks().forEach((t) => t.stop());
+    cameraStream = null;
+  }
+  cameraVideo.srcObject = null;
+  setCameraUi(false);
+}
+
+openCameraBtn.addEventListener("click", async () => {
+  try {
+    cameraStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "user", width: { ideal: 1280 } },
+      audio: false,
+    });
+    cameraVideo.srcObject = cameraStream;
+    setCameraUi(true);
+  } catch (err) {
+    showToast("camera unavailable: " + (err.name || err));
+  }
+});
+
+cancelCameraBtn.addEventListener("click", stopCamera);
+
+// Draw a source into the canvas with object-fit: cover semantics.
+function drawCover(ctx, source, sw, sh, cw, ch) {
+  const scale = Math.max(cw / sw, ch / sh);
+  const dw = sw * scale;
+  const dh = sh * scale;
+  ctx.drawImage(source, (cw - dw) / 2, (ch - dh) / 2, dw, dh);
+}
+
+snapBtn.addEventListener("click", () => {
+  if (!cameraStream) return;
+  const c = document.createElement("canvas");
+  c.width = 800;
+  c.height = 600;
+  const ctx = c.getContext("2d");
+  // Mirror to match the on-screen preview.
+  ctx.translate(c.width, 0);
+  ctx.scale(-1, 1);
+  drawCover(ctx, cameraVideo, cameraVideo.videoWidth || 1280,
+            cameraVideo.videoHeight || 960, c.width, c.height);
+  socket.emit("set_photo", { image: c.toDataURL("image/jpeg", 0.85) });
+  stopCamera();
+});
+
+saveGalleryBtn.addEventListener("click", () => {
+  const c = document.createElement("canvas");
+  c.width = 800;
+  c.height = 600;
+  const ctx = c.getContext("2d");
+  if (!photoImg.classList.contains("hidden") && photoImg.src) {
+    drawCover(ctx, photoImg, photoImg.naturalWidth || 800,
+              photoImg.naturalHeight || 600, c.width, c.height);
+  } else {
+    // No photo yet: reproduce the pastel gradient backdrop.
+    const g = ctx.createLinearGradient(0, 0, c.width, c.height);
+    g.addColorStop(0, "#ffc1dd");
+    g.addColorStop(0.6, "#c9b6f5");
+    g.addColorStop(1, "#a9e8d2");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, c.width, c.height);
+  }
+  ctx.font = "48px serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  localStickers.forEach((st) => {
+    if (st.sparkle) {
+      ctx.shadowColor = "#ffb3f0";
+      ctx.shadowBlur = 18;
+    } else if (st.spooky) {
+      ctx.shadowColor = "#9a5cff";
+      ctx.shadowBlur = 18;
+    } else {
+      ctx.shadowBlur = 0;
+    }
+    ctx.fillText(st.emoji, (st.x / 100) * c.width, (st.y / 100) * c.height);
+  });
+  socket.emit("save_to_gallery", { image: c.toDataURL("image/jpeg", 0.85) });
+});
+
+function addGalleryItem(item, prepend) {
+  const empty = document.getElementById("gallery-empty");
+  if (empty) empty.remove();
+  const a = document.createElement("a");
+  a.href = item.url;
+  a.target = "_blank";
+  const img = document.createElement("img");
+  img.src = item.url;
+  img.alt = img.title = "saved by " + item.by;
+  a.appendChild(img);
+  if (prepend) galleryEl.prepend(a);
+  else galleryEl.appendChild(a);
+}
+
+function renderGallery(items) {
+  galleryEl.querySelectorAll("a").forEach((el) => el.remove());
+  items.forEach((item) => addGalleryItem(item, false));
+}
 
 let toastTimer = null;
 function showToast(message) {

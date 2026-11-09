@@ -97,6 +97,26 @@ python app.py
 # → Purikura Booth running at http://localhost:5055
 ```
 
+## Camera & gallery
+
+It's a real photobooth now: tap **📷 camera** (the browser will ask
+permission), strike a pose, and **📸 snap!** — your photo becomes the shared
+backdrop for *everyone* in the booth, mirrored like a proper purikura
+machine, and the canvas resets for fresh decorating. When the masterpiece
+is ready, **💾 save** composites the photo + stickers (sparkle and spooky
+glows included) into a JPEG and adds it to the **gallery ♡** strip below the
+booth, visible to every visitor. Click a thumbnail to open it full size.
+
+Notes:
+
+- Camera access requires HTTPS or localhost — both `python app.py` locally
+  and Render qualify. If you deny permission, the pastel backdrop stays.
+- Gallery files are saved to a local `gallery/` folder (gitignored). On
+  Render's free tier the disk is **ephemeral**: the gallery resets on each
+  deploy or restart. For a persistent gallery, attach a Render disk or
+  upload to S3 (see `SYSTEM_DESIGN.md` — this is exactly the blob-storage
+  box in the diagram).
+
 ## Deploy to Render (share the booth across machines)
 
 The repo ships a `render.yaml` blueprint, so the booth can run on
