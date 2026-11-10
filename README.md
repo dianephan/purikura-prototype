@@ -83,19 +83,50 @@ the flag is ON:
 
 ### Optional: the remediation trigger
 
-The 🚨 button is off until you create a trigger on **your** `sparkleStickerEngine` flag and paste its URL into `.env`. The URL is a secret for that flag in one environment. It has to be the same project and environment as the `LD_SDK_KEY` you set above. Someone else's URL turns off their flag, so each account creates its own.
+The 🚨 button is off until a trigger exists on **your** `sparkleStickerEngine` flag and its URL is in `.env` as `LD_TRIGGER_URL`. The URL is a secret for that flag in one environment. It has to be the same project and environment as the `LD_SDK_KEY` you set above. Someone else's URL turns off their flag, so each account creates its own.
+
+The trigger is a **generic trigger** whose action is **turn flag targeting off** (`turnFlagOff`). Create it in the UI or with the REST API. LaunchDarkly returns the invoke URL only when the trigger is created. If you close that response and did not save the URL, reset it; the previous URL stops working.
+
+#### In the UI
 
 1. In LaunchDarkly, open the project you copied the SDK key from.
 2. Switch the environment picker (top of the page) to that same environment.
-3. Open the flag `**sparkleStickerEngine**`.
+3. Open the flag `sparkleStickerEngine`.
 4. Go to **Settings → Triggers → Add trigger**.
 5. Type: **Generic trigger**. Action: **Turn flag targeting off**. Save.
-6. Copy the URL LaunchDarkly shows. It looks like `https://app.launchdarkly.com/webhook/triggers/...` and appears when the trigger is created. If you already created one and closed that dialog, open the trigger and **reset the URL** to get a new copy. The previous URL stops working.
-7. In `.env`, add the line and save:
-  ```bash
-   LD_TRIGGER_URL=https://app.launchdarkly.com/webhook/triggers/...
-  ```
-8. Restart `python app.py`. The server reads `.env` at startup, and the 🚨 button enables only when `LD_TRIGGER_URL` is set.
+6. Copy the URL LaunchDarkly shows. It looks like `https://app.launchdarkly.com/webhook/triggers/...`.
+
+
+
+#### With the REST API
+
+Use an [API access token](https://launchdarkly.com/docs/home/account/api) (`api-...`), not the server-side SDK key. The token needs permission to create flag triggers in that project. `POST` [Create a flag trigger](https://launchdarkly.com/docs/api/flag-triggers/create-flag-trigger):
+
+```bash
+curl -X POST \
+  "https://app.launchdarkly.com/api/v2/flags/<project-key>/sparkleStickerEngine/triggers/<environment-key>" \
+  -H "Authorization: $LD_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "integrationKey": "generic-trigger",
+    "instructions": [{ "kind": "turnFlagOff" }],
+    "comment": "Emergency de-sparkle: turn sparkleStickerEngine targeting off"
+  }'
+```
+
+A `201` response includes `triggerURL`. That value is `LD_TRIGGER_URL`. List calls do not return it again.
+
+The `diane-demo` / `test` flag already has this trigger. Its id is `6af35cbadaf65007b1054e6a`. The invoke URL is only in the local `.env` and must stay out of git.
+
+#### Arm the button
+
+In `.env`:
+
+```bash
+LD_TRIGGER_URL=https://app.launchdarkly.com/webhook/triggers/...
+```
+
+Restart `python app.py`. The server reads `.env` at startup, and the 🚨 button enables only when `LD_TRIGGER_URL` is set.
 
 The same URL works from a terminal:
 
